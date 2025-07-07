@@ -182,7 +182,7 @@ X = df[['Age', 'Academic_Performance']].values  # shape (n_samples, 2)
 y_raw = df['Phone_Checks_Per_Day'].values
 
 # Chuẩn hóa X
-X = (X - np.mean(X, axis=0)) / np.std(X, axis=0)
+# X = (X - np.mean(X, axis=0)) / np.std(X, axis=0)
 
 # Chuyển y thành binary: 1 nếu lớn hơn trung bình, 0 nếu ngược lại
 y_mean = np.mean(y_raw)
@@ -211,6 +211,8 @@ for epoch in range(epochs):
 W = model.W
 b = model.b
 print(f"Trained weights: W={W}, b={b}")
+
+print(model.accuracy(X, y))
 
 def compute_individual_gradients(X, y, W, b):
     y = y.reshape(-1, 1) if y.ndim == 1 else y
