@@ -6,7 +6,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.datasets import make_classification
 
 import pandas as pd
-df = pd.read_csv('/content/teen_phone_addiction_dataset.csv')
+df = pd.read_csv(r"D:\ICPC_TOEIC_CORESET\Coreset_with_Gradient\Code\CRAIG\data\teen_phone_addiction_dataset.csv")
 df.head()
 
 import matplotlib.pyplot as plt
