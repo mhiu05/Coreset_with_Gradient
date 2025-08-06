@@ -1,29 +1,17 @@
-import numpy as np
-from scipy.spatial import ConvexHull
 import time
+import os
 
-from sklearn.linear_model import LogisticRegression
-from sklearn.datasets import make_classification
-
+import numpy as np
 import pandas as pd
-df = pd.read_csv(r"D:\ICPC_TOEIC_CORESET\Coreset_with_Gradient\Code\CRAIG\data\teen_phone_addiction_dataset.csv")
-df.head()
-
+from scipy.spatial import ConvexHull
 import matplotlib.pyplot as plt
-plt.hist(df['Phone_Checks_Per_Day'], bins=20, edgecolor='black', color='skyblue')
-plt.title('Distribution of Phone Checks Per Day')
-plt.xlabel('Số lần kiểm tra điện thoại mỗi ngày')
-plt.ylabel('Frequency (Số lượng)')
-plt.grid(axis='y', linestyle='--', alpha=0.7)
-plt.show()
 
-plt.hist(df['Age'], bins=20, edgecolor='black', color='skyblue')
-plt.title('Distribution of Age')
-plt.xlabel('Tuổi')
-plt.ylabel('Frequency (Số lượng)')
-plt.grid(axis='y', linestyle='--', alpha=0.7)
-plt.show()
+# data frame
+current_dir = os.path.dirname(__file__)
+relative_path = os.path.join(current_dir, "data", "teen_phone_addiction_dataset.csv")
+df = pd.read_csv(relative_path)
 
+# Craig Algorithm
 def craig_greedy(points, G, k, indices=None):
     R = G.copy()
     G_approx = np.zeros_like(G)
@@ -56,6 +44,7 @@ def craig_greedy(points, G, k, indices=None):
         R = G - G_approx
     return S, w, G_approx, R
 
+# Show craig method
 def CRAIG(points, dimension, k):
     print(f"\n=== Simulation for {dimension}D ===")
     G = np.sum(points, axis=0)
@@ -78,6 +67,7 @@ def CRAIG(points, dimension, k):
     print(f"Relative error CRAIG gốc: {relative_error:.6f}")
     print(f"Thời gian CRAIG gốc: {t1 - t0:.4f} giây\n")
 
+# show random method
 def random(points, dimension, k):
     print(f"\n=== Simulation for {dimension}D ===")
     G = np.sum(points, axis=0)
@@ -98,6 +88,7 @@ def random(points, dimension, k):
     print(f"Relative error random: {relative_error_random:.6f}")
     print(f"Thời gian random: {t1 - t0:.4f} giây\n")
 
+# show  craig + convex hull method
 def convex_hull(points, dimension, k):
     print(f"\n=== Simulation for {dimension}D ===")
     G = np.sum(points, axis=0)
@@ -226,10 +217,7 @@ def compute_individual_gradients(X, y, W, b):
     return individual_grads  # Trả về ma trận (n_samples, 2)
 
 if __name__ == "__main__":
-    # Đảm bảo X có shape (n_samples, n_features)
-    # y có shape (n_samples, 1)
-    # W có shape (n_features, 1)
-    # b là scalar
+    print(df.head(5))
 
     num_points = compute_individual_gradients(X, y, W, b)
     k = 10
