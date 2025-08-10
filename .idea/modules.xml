@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/Coreset_with_Gradient.iml" filepath="$PROJECT_DIR$/.idea/Coreset_with_Gradient.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/CWD.iml" filepath="$PROJECT_DIR$/.idea/CWD.iml" />
     </modules>
   </component>
 </project>
