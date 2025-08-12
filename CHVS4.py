@@ -1,20 +1,20 @@
+
 """
     Copyright © 2025, Nguyen Kieu Linh and Hoang Xuan Phu
-    This code was implemented for the paper titled "Algorithms for finding
-    a desired number of vertices ofthe convex hull of finite sets"
+    This code was implemented for the paper titled "Algorithms for finding 
+    a desired number of vertices of the convex hull of finite sets"
 """
-
-import random
-import warnings
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import numpy as np
 from numpy.linalg import norm, pinv, matrix_rank
 from scipy.linalg import null_space
-
+import random
+import warnings
+from itertools import combinations
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # ==============================================================================
-# I. CÁC HÀM PHỤ TRỢ CHUNG
+# I. CÁC HÀM PHỤ TRỢ CHUNG 
 # ==============================================================================
 
 def partition_points(P: np.ndarray, p_indices_to_partition: list[int], simplex_indices: list[int]) -> list[list[int]]:
@@ -25,48 +25,47 @@ def partition_points(P: np.ndarray, p_indices_to_partition: list[int], simplex_i
     :param simplex_indices: Các chỉ số của d+1 đỉnh tạo thành simplex.
     """
     num_vertices = len(simplex_indices)
-    d = P.shape[1]
+    d = P.shape[1] 
     if num_vertices != d + 1:
         raise ValueError("Partitioning requires a simplex with d+1 vertices.")
 
-    V_simplex_matrix = P[simplex_indices, :]
-    parts = [[] for _ in range(num_vertices)]
-
+    V_simplex_matrix = P[simplex_indices, :] 
+    parts = [[] for _ in range(num_vertices)] 
     def barycentric_coords_full(p_vec, V_mat):
         A_bary = np.vstack((V_mat.T, np.ones(d + 1)))
         b_bary = np.append(p_vec, 1)
 
         if matrix_rank(A_bary) < d + 1:
             return np.full(d + 1, np.nan)
-
+     
         return pinv(A_bary) @ b_bary
 
+  
     for p_idx in p_indices_to_partition:
-        p = P[p_idx, :]
-        α = barycentric_coords_full(p, V_simplex_matrix)
+        p = P[p_idx, :] 
+        α = barycentric_coords_full(p, V_simplex_matrix) 
         if np.isnan(α).any():
             continue
 
-        min_val = np.min(α)
-        min_idx = np.argmin(α)
+        min_val = np.min(α) 
+        min_idx = np.argmin(α) 
         if min_val < -1e-9:
             parts[min_idx].append(p_idx)
-
-    return parts
-
+            
+    return parts 
 
 def get_facets_indices(simplex_indices: list[int]) -> list[list[int]]:
     """
     Hàm lấy các chỉ số đỉnh của các mặt của một simplex
     :param simplex_indices: Các chỉ số của d+1 đỉnh tạo thành simplex.
     """
-    d1 = len(simplex_indices)
-    facets = []
+    d1 = len(simplex_indices) 
+    facets = [] 
     for i in range(d1):
-        facet_vertices = simplex_indices[:i] + simplex_indices[i + 1:]
-        facets.append(facet_vertices)
-    return facets
-
+ 
+        facet_vertices = simplex_indices[:i] + simplex_indices[i+1:]
+        facets.append(facet_vertices) 
+    return facets 
 
 def dist_point_to_linear_subspace(p_vec: np.ndarray, basis_vectors_matrix: np.ndarray) -> float:
     """
@@ -75,19 +74,18 @@ def dist_point_to_linear_subspace(p_vec: np.ndarray, basis_vectors_matrix: np.nd
     :param p_vec: Vector điểm (u trong bài báo)
     :param basis_vectors_matrix: Ma trận các vector cơ sở của không gian con (U trong bài báo), mỗi cột là một vector cơ sở.
     """
-    t = basis_vectors_matrix.shape[1]
+    t = basis_vectors_matrix.shape[1] 
     if t == 0:
         return norm(p_vec)
 
-    Q = basis_vectors_matrix.T @ basis_vectors_matrix
+    Q = basis_vectors_matrix.T @ basis_vectors_matrix 
     c = basis_vectors_matrix.T @ p_vec
 
     a_star = pinv(Q) @ c
 
     dist_sq = p_vec @ p_vec - c @ a_star
-
+    
     return np.sqrt(max(0.0, dist_sq))
-
 
 def compute_distance_to_hyperplane_ding2017(x: np.ndarray, S_points_matrix: np.ndarray) -> float:
     """
@@ -96,43 +94,42 @@ def compute_distance_to_hyperplane_ding2017(x: np.ndarray, S_points_matrix: np.n
     :param x: Điểm cần tính khoảng cách.
     :param S_points_matrix: Ma trận các điểm định nghĩa siêu phẳng/bao lồi (S trong Algorithm 2), mỗi hàng là một điểm.
     """
-    n_S, d = S_points_matrix.shape
+    n_S, d = S_points_matrix.shape 
 
     if n_S < d:
-        return np.min([norm(x - S_points_matrix[i, :]) for i in range(n_S)])
+        return np.min([norm(x - S_points_matrix[i,:]) for i in range(n_S)])
 
     V_hyperplane_for_normal = S_points_matrix[:d, :]
-    p1_normal = V_hyperplane_for_normal[0, :]
+    p1_normal = V_hyperplane_for_normal[0, :] 
     basis_vectors_normal = V_hyperplane_for_normal[1:, :] - p1_normal
-
+ 
     if matrix_rank(basis_vectors_normal) < d - 1:
-        return np.min([norm(x - S_points_matrix[i, :]) for i in range(n_S)])
+        return np.min([norm(x - S_points_matrix[i,:]) for i in range(n_S)])
 
-    ns = null_space(basis_vectors_normal.T)
+    ns = null_space(basis_vectors_normal.T) 
     if ns.shape[1] == 0:
-        return np.min([norm(x - S_points_matrix[i, :]) for i in range(n_S)])
-    beta = ns[:, 0]
+        return np.min([norm(x - S_points_matrix[i,:]) for i in range(n_S)])
+    beta = ns[:, 0] 
 
     x0_center_vec = np.mean(S_points_matrix, axis=0)
 
-    z0 = x - x0_center_vec
+    z0 = x - x0_center_vec 
 
-    k_positive_dot = 0
+    k_positive_dot = 0  
     for i in range(n_S):
         zi = S_points_matrix[i, :] - x0_center_vec
-        if np.dot(z0, zi) >= 0:
+        if np.dot(z0, zi) >= 0: 
             k_positive_dot += 1
 
     if k_positive_dot < n_S:
-        return np.min([norm(x - S_points_matrix[i, :]) for i in range(n_S)])
+        return np.min([norm(x - S_points_matrix[i,:]) for i in range(n_S)])
     else:
         x1_from_S = S_points_matrix[0, :]
 
         norm_beta = norm(beta)
-        if norm_beta < 1e-12:
-            return np.inf
+        if norm_beta < 1e-12: 
+            return np.inf 
         return np.abs(np.dot(beta, x - x1_from_S)) / norm_beta
-
 
 def generate_random_points_in_hypercube(n: int, d: int, range_min: float = 0.0, range_max: float = 1.0) -> np.ndarray:
     """
@@ -142,7 +139,6 @@ def generate_random_points_in_hypercube(n: int, d: int, range_min: float = 0.0, 
     :param range_min, range_max: Khoảng giá trị cho mỗi chiều (ví dụ: [0, 1] cho siêu hộp đơn vị)
     """
     return np.random.uniform(range_min, range_max, (n, d))
-
 
 # ==============================================================================
 # II. CHỌN SIMPLEX BAN ĐẦU (Wang 2013 Algorithm 1)
@@ -165,22 +161,22 @@ def select_initial_simplex_Wang2013_sequential(P: np.ndarray, d: int) -> list[in
     dists_xj0 = norm(P - xj0, axis=1)
     xj1_idx = np.argmax(dists_xj0)
 
-    S_t_indices = {xj0_idx, xj1_idx}
-
+    S_t_indices = {xj0_idx, xj1_idx} 
+    
     tilde_U_all = P - xj0
-
+    
     tilde_U_S_t_basis = tilde_U_all[xj1_idx, :].reshape(-1, 1)
 
-    t = 1
+    t = 1 
 
     while t < d:
         all_candidate_dists = np.full(n, -np.inf)
-
+        
         for i in range(n):
-            if i not in S_t_indices:
-                u_i = tilde_U_all[i, :]
+            if i not in S_t_indices: 
+                u_i = tilde_U_all[i, :] 
                 all_candidate_dists[i] = dist_point_to_linear_subspace(u_i, tilde_U_S_t_basis)
-
+        
         max_dist_subspace = np.max(all_candidate_dists)
         if max_dist_subspace == -np.inf:
             break
@@ -189,12 +185,11 @@ def select_initial_simplex_Wang2013_sequential(P: np.ndarray, d: int) -> list[in
         S_t_indices.add(best_idx_subspace)
         tilde_U_S_t_basis = np.hstack((tilde_U_S_t_basis, tilde_U_all[best_idx_subspace, :].reshape(-1, 1)))
         t += 1
-
+    
     if len(S_t_indices) != d + 1:
         warnings.warn(f"Could not select d+1 independent vertices. Selected {len(S_t_indices)} instead.")
 
     return list(S_t_indices)
-
 
 def select_initial_simplex_Wang2013_parallel(P: np.ndarray, d: int) -> list[int]:
     """
@@ -222,8 +217,7 @@ def select_initial_simplex_Wang2013_parallel(P: np.ndarray, d: int) -> list[int]
         candidate_indices = [i for i in range(n) if i not in S_t_indices]
 
         with ThreadPoolExecutor() as executor:
-            future_to_idx = {executor.submit(dist_point_to_linear_subspace, tilde_U_all[i, :], tilde_U_S_t_basis): i for
-                             i in candidate_indices}
+            future_to_idx = {executor.submit(dist_point_to_linear_subspace, tilde_U_all[i, :], tilde_U_S_t_basis): i for i in candidate_indices}
             for future in as_completed(future_to_idx):
                 idx = future_to_idx[future]
                 try:
@@ -240,12 +234,11 @@ def select_initial_simplex_Wang2013_parallel(P: np.ndarray, d: int) -> list[int]
         S_t_indices.add(best_idx_subspace)
         tilde_U_S_t_basis = np.hstack((tilde_U_S_t_basis, tilde_U_all[best_idx_subspace, :].reshape(-1, 1)))
         t += 1
-
+    
     if len(S_t_indices) != d + 1:
         warnings.warn(f"Could not select d+1 independent vertices. Selected {len(S_t_indices)} instead.")
 
     return list(S_t_indices)
-
 
 # ==============================================================================
 # III. THUẬT TOÁN CHVS4 (Dựa trên Algorithm 3 CHVS4 của Ding 2017)
@@ -271,12 +264,13 @@ def CHVS4_Algorithm3_Ding2017(P: np.ndarray, epsilon: float = 0.0) -> np.ndarray
     final_V_indices.update(initial_simplex_vertices_indices)
 
     candidate_indices_for_partition = [i for i in range(n) if i not in final_V_indices]
-
+    
     P_oc_list = []
     S_oc_list = []
 
     initial_facets = get_facets_indices(initial_simplex_vertices_indices)
     initial_parts_by_facet = partition_points(P, candidate_indices_for_partition, initial_simplex_vertices_indices)
+
 
     m_i_values = []
     x_i_star_indices = []
@@ -284,7 +278,7 @@ def CHVS4_Algorithm3_Ding2017(P: np.ndarray, epsilon: float = 0.0) -> np.ndarray
     for i in range(len(initial_facets)):
         current_facet_indices = initial_facets[i]
         current_part_indices = initial_parts_by_facet[i]
-
+        
         if current_part_indices:
             P_oc_list.append(current_part_indices)
             S_oc_list.append(current_facet_indices)
@@ -297,15 +291,17 @@ def CHVS4_Algorithm3_Ding2017(P: np.ndarray, epsilon: float = 0.0) -> np.ndarray
                 if dist > max_dist_in_part:
                     max_dist_in_part = dist
                     best_point_in_part_idx = p_idx
-
+            
             m_i_values.append(max_dist_in_part)
             x_i_star_indices.append(best_point_in_part_idx)
 
+
     m = max(m_i_values) if m_i_values else -np.inf
     active_problem_indices = set(range(len(P_oc_list)))
-
+    
     max_iterations = 2 * n
     current_iteration = 0
+
 
     while m > epsilon and active_problem_indices and current_iteration < max_iterations:
         current_iteration += 1
@@ -314,7 +310,7 @@ def CHVS4_Algorithm3_Ding2017(P: np.ndarray, epsilon: float = 0.0) -> np.ndarray
         _, j0_problem_idx = max(active_m_tuples, key=lambda item: item[0])
 
         x_j0_star_idx = x_i_star_indices[j0_problem_idx]
-
+        
         final_V_indices.add(x_j0_star_idx)
         active_problem_indices.remove(j0_problem_idx)
 
@@ -336,7 +332,7 @@ def CHVS4_Algorithm3_Ding2017(P: np.ndarray, epsilon: float = 0.0) -> np.ndarray
                     if dist > max_dist_in_new_part:
                         max_dist_in_new_part = dist
                         best_point_in_new_part_idx = p_idx
-
+                
                 P_oc_list.append(new_part_indices)
                 S_oc_list.append(new_facet_indices)
                 m_i_values.append(max_dist_in_new_part)
@@ -352,28 +348,27 @@ def CHVS4_Algorithm3_Ding2017(P: np.ndarray, epsilon: float = 0.0) -> np.ndarray
 
     return P[list(final_V_indices), :]
 
-
 # ==============================================================================
 # V. VÍ DỤ SỬ DỤNG VÀ KIỂM THỬ
 # ==============================================================================
 if __name__ == '__main__':
 
-    N_POINTS = 500
-    D_DIMENSIONS = 3
-
+    N_POINTS = 500  
+    D_DIMENSIONS = 3   
+    
     print(f"Generating {N_POINTS} points in {D_DIMENSIONS} dimensions...")
     points = np.random.randn(N_POINTS, D_DIMENSIONS)
     if D_DIMENSIONS > 1:
         points /= np.linalg.norm(points, axis=1)[:, np.newaxis]
-
+    
     print("\nRunning Sequential CHVS4 Algorithm...")
     import time
-
     start_time_seq = time.time()
     convex_hull_vertices_seq = CHVS4_Algorithm3_Ding2017(points, epsilon=0.0)
     end_time_seq = time.time()
     print(f"Sequential version found {len(convex_hull_vertices_seq)} vertices.")
     print(f"Time taken (Sequential): {end_time_seq - start_time_seq:.4f} seconds.")
+
 
     if D_DIMENSIONS >= 2:
         try:
@@ -399,8 +394,7 @@ if __name__ == '__main__':
                 ax2.scatter(points[:, 0], points[:, 1], s=10, alpha=0.5, label='All Points')
                 for simplex in hull_true.simplices:
                     ax2.plot(points[simplex, 0], points[simplex, 1], 'g-')
-                ax2.scatter(points[hull_true.vertices, 0], points[hull_true.vertices, 1], c='g', s=40,
-                            label='True Hull Vertices')
+                ax2.scatter(points[hull_true.vertices, 0], points[hull_true.vertices, 1], c='g', s=40, label='True Hull Vertices')
                 ax2.set_title(f'SciPy ConvexHull Result ({len(hull_true.vertices)} vertices)')
                 ax2.legend()
                 ax2.set_aspect('equal', adjustable='box')
@@ -409,21 +403,18 @@ if __name__ == '__main__':
 
             elif D_DIMENSIONS == 3:
                 from mpl_toolkits.mplot3d import Axes3D
-
                 fig = plt.figure(figsize=(18, 8))
 
                 ax1 = fig.add_subplot(121, projection='3d')
                 ax1.scatter(points[:, 0], points[:, 1], points[:, 2], s=5, alpha=0.3, label='All Points')
-                ax1.scatter(convex_hull_vertices_seq[:, 0], convex_hull_vertices_seq[:, 1],
-                            convex_hull_vertices_seq[:, 2], c='r', s=30, label='CHVS4 Vertices')
+                ax1.scatter(convex_hull_vertices_seq[:, 0], convex_hull_vertices_seq[:, 1], convex_hull_vertices_seq[:, 2], c='r', s=30, label='CHVS4 Vertices')
                 ax1.set_title(f'CHVS4 Result ({len(convex_hull_vertices_seq)} vertices)')
                 ax1.legend()
 
                 ax2 = fig.add_subplot(122, projection='3d')
                 ax2.scatter(points[:, 0], points[:, 1], points[:, 2], s=5, alpha=0.3, label='All Points')
 
-                ax2.scatter(points[hull_true.vertices, 0], points[hull_true.vertices, 1], points[hull_true.vertices, 2],
-                            c='g', s=30, label='True Hull Vertices')
+                ax2.scatter(points[hull_true.vertices, 0], points[hull_true.vertices, 1], points[hull_true.vertices, 2], c='g', s=30, label='True Hull Vertices')
                 ax2.set_title(f'SciPy ConvexHull Result ({len(hull_true.vertices)} vertices)')
                 ax2.legend()
 
@@ -431,3 +422,4 @@ if __name__ == '__main__':
 
         except ImportError:
             print("\nPlease install matplotlib and scipy to visualize the results: `pip install matplotlib scipy`")
+
