@@ -1,25 +1,10 @@
-print(__doc__)
-import matplotlib
-#matplotlib.use('TkAgg')
-
 import heapq
 import numpy as np
-import pandas as pd
-import scipy as sp
 import math
-from scipy import spatial
-import matplotlib.pyplot as plt
-
 
 class FacilityLocation:
 
     def __init__(self, D, V, alpha=1.):
-        '''
-        Args
-        - D: np.array, shape [N, N], similarity matrix
-        - V: list of int, indices of columns of D
-        - alpha: float
-        '''
         self.D = D
         self.curVal = 0
         self.curMax = np.zeros(len(D))
@@ -56,8 +41,7 @@ def _heappush_max(heap, item):
 
 
 def _heappop_max(heap):
-    """Maxheap version of a heappop."""
-    lastelt = heap.pop()  # raises appropriate IndexError if heap is empty
+    lastelt = heap.pop()
     if heap:
         returnitem = heap[0]
         heap[0] = lastelt
